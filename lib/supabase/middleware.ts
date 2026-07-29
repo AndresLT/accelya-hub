@@ -78,14 +78,20 @@ export async function updateSession(request: NextRequest) {
 
   // Fail-open on transient read errors (see doc note above).
   if (!error && hubUser) {
+    const inactive = !hubUser.is_active;
     const expired =
-      !hubUser.is_active ||
       !hubUser.last_login_at ||
       Date.now() - new Date(hubUser.last_login_at).getTime() > SEVEN_DAYS_MS;
 
-    if (expired) {
+    if (inactive || expired) {
       await supabase.auth.signOut();
-      return redirectTo(request, supabaseResponse, "/login");
+      // Tell /login why we bounced them, so it can explain (see US1.2).
+      return redirectTo(
+        request,
+        supabaseResponse,
+        "/login",
+        inactive ? "revoked" : "expired",
+      );
     }
   }
 
@@ -105,10 +111,11 @@ function redirectTo(
   request: NextRequest,
   supabaseResponse: NextResponse,
   path: string,
+  reason?: string,
 ) {
   const url = request.nextUrl.clone();
   url.pathname = path;
-  url.search = "";
+  url.search = reason ? `?reason=${reason}` : "";
   const redirect = NextResponse.redirect(url);
   supabaseResponse.cookies.getAll().forEach((cookie) => {
     redirect.cookies.set(cookie);
