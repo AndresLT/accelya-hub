@@ -1,26 +1,99 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Accelya Hub — design tokens (Brand Style Guide, 03-07-2026).
+ * In Tailwind v4 the theme is configured in CSS: every token declared in
+ * `@theme` becomes a utility, e.g. `--color-acc-blue` -> `bg-acc-blue`,
+ * `text-acc-blue`, `border-acc-blue`.
+ */
+@theme {
+  /* Brand */
+  --color-acc-blue: #012169;
+  --color-acc-blue-l20: #34497f;
+  --color-acc-blue-l40: #677096;
+  --color-acc-blue-d20: #011654;
+  --color-acc-blue-d40: #010e3f;
+  --color-acc-teal: #5cb8b2;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Text (on light background) */
+  --color-tx-1: #0d1114; /* primary   */
+  --color-tx-2: #425563; /* secondary */
+  --color-tx-3: #687782; /* tertiary  */
+  /* Text (on dark background) */
+  --color-tx-1-c: #ffffff;
+  --color-tx-2-c: #ccd3e1;
+  --color-tx-3-c: #99a6c3;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Backgrounds (light) */
+  --color-bg-1: #ffffff; /* base      */
+  --color-bg-2: #f8f9fb; /* secondary */
+  --color-bg-3: #eaeef2; /* tertiary / borders */
+  /* Backgrounds (dark) */
+  --color-bg-1-c: #012169;
+  --color-bg-2-c: #344d87;
+  --color-bg-3-c: #4d6396;
+
+  /* Semantic — system states (derived from the complementary palette) */
+  --color-success: #93b589;
+  --color-success-bg: #f4f8f3;
+  --color-success-tx: #586c52;
+  --color-warning: #f4bb38;
+  --color-warning-bg: #fdf8eb;
+  --color-warning-tx: #6e5419;
+  --color-error: #bf4947;
+  --color-error-bg: #f9eded;
+  --color-error-tx: #85332e;
+  --color-info: #5cb8b2;
+  --color-info-bg: #eef8f7;
+  --color-info-tx: #377b95;
+
+  /* Typography — Open Sans for body, Raleway for headings.
+     Named directly (with fallbacks) until we self-host the .woff2 files
+     via next/font/local; see the note in app/layout.tsx. */
+  --font-sans:
+    "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  --font-heading:
+    "Raleway", "Open Sans", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg-2);
+  color: var(--color-tx-1);
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+}
+
+/* Tailwind v4's Preflight resets buttons to `cursor: default`; restore the
+   pointer cursor for enabled buttons (disabled ones keep the default). */
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Retint sonner's `richColors` palette to Accelya's semantic tokens so
+   every toast in the app matches the design system. */
+[data-sonner-toaster] {
+  --success-bg: var(--color-success-bg);
+  --success-border: var(--color-success);
+  --success-text: var(--color-success-tx);
+
+  --error-bg: var(--color-error-bg);
+  --error-border: var(--color-error);
+  --error-text: var(--color-error-tx);
+
+  --warning-bg: var(--color-warning-bg);
+  --warning-border: var(--color-warning);
+  --warning-text: var(--color-warning-tx);
+
+  --info-bg: var(--color-info-bg);
+  --info-border: var(--color-info);
+  --info-text: var(--color-info-tx);
 }

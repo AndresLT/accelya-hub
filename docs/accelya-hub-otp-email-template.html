@@ -1,0 +1,64 @@
+<!--
+  ACCELYA HUB — OTP email template
+  Paste this HTML into: Supabase Dashboard > Authentication > Email Templates
+  Apply it to BOTH "Magic Link" and "Confirm signup" templates (Supabase
+  uses "Confirm signup" on a brand-new email's first login).
+
+  Supabase variables used here:
+    {{ .Token }}    -> the 6-digit OTP code
+    {{ .Email }}    -> the recipient's email
+-->
+<div style="margin:0; padding:0; background-color:#EAEEF2; font-family: 'Segoe UI', Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#EAEEF2; padding: 32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#FFFFFF; border-radius:12px; overflow:hidden; max-width:480px; width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#012169; padding: 28px 32px;">
+              <span style="color:#FFFFFF; font-size:22px; font-weight:700; letter-spacing:-0.5px;">accelya</span>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin:0 0 8px 0; color:#0D1114; font-size:20px; font-weight:600;">
+                Your Hub access code
+              </p>
+              <p style="margin:0 0 24px 0; color:#425563; font-size:14px; line-height:1.5;">
+                Use this code to complete your sign-in to the Accelya Hub. The code expires in 10 minutes.
+              </p>
+
+              <!-- OTP code -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="background-color:#F8F9FB; border:1px solid #EAEEF2; border-radius:8px; padding: 20px;">
+                    <span style="color:#012169; font-size:32px; font-weight:700; letter-spacing:6px;">
+                      {{ .Token }}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0 0; color:#687782; font-size:13px; line-height:1.5;">
+                If you didn't request this code, you can ignore this email — your account is still safe.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 32px; background-color:#F8F9FB; border-top:1px solid #EAEEF2;">
+              <p style="margin:0; color:#99A6C3; font-size:12px;">
+                This is an automated email from the Accelya internal Hub. Sent to {{ .Email }}.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>
