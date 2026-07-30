@@ -10,9 +10,12 @@ type App = Pick<
 
 /**
  * App catalog (UC3/UC4). Server Component: it fetches the current user's
- * assigned apps directly on the server. RLS does the filtering for us —
- * `user_app_access` returns only this user's rows and `apps` only active
- * ones — so no explicit `where user = ...` is needed here.
+ * assigned apps directly on the server.
+ *
+ * We filter by the current user's email EXPLICITLY rather than relying on
+ * RLS alone: the `user_app_access` select policy also allows hr_admins to
+ * read every row, so an admin viewing their own catalog would otherwise
+ * see everyone's assignments. `apps` are still RLS-limited to active ones.
  *
  * Because every app is a route inside this same project, opening one is a
  * plain <Link>; the session travels automatically (UC4, no re-auth).
@@ -20,11 +23,14 @@ type App = Pick<
 export default async function CatalogPage() {
   const supabase = await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const { data, error } = await supabase
     .from("user_app_access")
-    .select(
-      "app:apps(id, key, name, description, icon, launch_url, is_active)",
-    );
+    .select("app:apps(id, key, name, description, icon, launch_url, is_active)")
+    .eq("user_email", user?.email?.toLowerCase() ?? "");
 
   const apps: App[] = (data ?? [])
     .map((row) => row.app as App | null)
