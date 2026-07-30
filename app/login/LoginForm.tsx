@@ -1,11 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
 type Step = "request" | "verify";
+
+/**
+ * Seconds a user must wait between OTP sends. Matches Supabase's default
+ * email send interval (60s) so the button re-enables only once Supabase
+ * will actually accept another request — otherwise the resend would hit
+ * Supabase's own rate limit (UC1 retry handling).
+ */
+const RESEND_COOLDOWN_SECONDS = 60;
+
+/** Pulls the "... after N seconds" wait out of Supabase's rate-limit error. */
+function secondsFromRateLimit(err: unknown): number | null {
+  const message = err instanceof Error ? err.message : "";
+  const match = message.match(/after (\d+) second/i);
+  return match ? Number(match[1]) : null;
+}
 
 /**
  * OTP login form (UC1). Two steps, following the tested auth flow:
@@ -26,6 +41,14 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // Tick the resend cooldown down to zero, one second at a time.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +88,7 @@ export function LoginForm() {
 
       setEmail(normalized);
       setStep("verify");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
       toast.success(`We sent a 6-digit code to ${normalized}.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
@@ -109,6 +133,37 @@ export function LoginForm() {
       toast.error(
         err instanceof Error ? err.message : "Invalid or expired code.",
       );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (cooldown > 0 || loading) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (error) throw error;
+
+      await supabase.rpc("log_access_event", {
+        p_email: email,
+        p_event_type: "otp_requested",
+      });
+
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      toast.success("We sent you a new code.");
+    } catch (err) {
+      // If Supabase's own rate limit still rejects us, sync our cooldown to
+      // the remaining time instead of surfacing a confusing error toast.
+      const wait = secondsFromRateLimit(err);
+      if (wait) {
+        setCooldown(wait);
+      } else {
+        toast.error(
+          err instanceof Error ? err.message : "We couldn't resend the code.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -185,11 +240,20 @@ export function LoginForm() {
 
           <button
             type="button"
+            onClick={handleResend}
+            disabled={loading || cooldown > 0}
+            className="mt-4 w-full text-sm font-semibold text-acc-blue hover:underline disabled:cursor-not-allowed disabled:font-normal disabled:text-tx-3 disabled:no-underline"
+          >
+            {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               setStep("request");
               setToken("");
             }}
-            className="mt-3 w-full text-sm text-tx-3 hover:text-tx-2"
+            className="mt-2 w-full text-sm text-tx-3 hover:text-tx-2"
           >
             Use a different email
           </button>
