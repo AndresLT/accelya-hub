@@ -1,0 +1,42 @@
+name: CI
+
+# Runs the same checks we run locally on every push and pull request to the
+# long-lived branches, so a broken change can't silently reach production
+# (master deploys to Vercel).
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master, dev]
+
+jobs:
+  verify:
+    name: Typecheck, lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx next lint
+
+      - name: Build
+        run: npm run build
+        env:
+          # Public, RLS-protected values (same as .env.example). They are
+          # only needed so the client is instantiated during the build's
+          # prerender step; no secrets belong here.
+          NEXT_PUBLIC_SUPABASE_URL: https://yinzausstaqfgamazqnw.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_bnALm87kUmvO-2g034jtzA_5BtoY9EG
