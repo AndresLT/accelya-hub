@@ -35,28 +35,31 @@ export default async function HubLayout({
   return (
     <div className="min-h-screen">
       <header className="border-b border-bg-3 bg-acc-blue">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link href="/" className="font-heading font-bold text-tx-1-c">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+          <Link
+            href="/"
+            className="shrink-0 font-heading font-bold text-tx-1-c"
+          >
             accelya <span className="text-acc-teal">&gt;&gt;</span> Hub
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
             {isHrAdmin && (
               <Link
                 href="/admin"
-                className="text-sm font-semibold text-tx-2-c hover:text-tx-1-c"
+                className="shrink-0 text-sm font-semibold text-tx-2-c hover:text-tx-1-c"
               >
                 Admin
               </Link>
             )}
-            <div className="text-right">
-              <p className="text-sm font-semibold text-tx-1-c">
+            <div className="min-w-0 text-right">
+              <p className="truncate text-sm font-semibold text-tx-1-c">
                 {hubUser?.full_name ?? user.email}
               </p>
-              {isHrAdmin && (
-                <p className="text-xs text-acc-teal">HR admin</p>
-              )}
+              {isHrAdmin && <p className="text-xs text-acc-teal">HR admin</p>}
             </div>
-            <SignOutButton email={hubUser?.email ?? user.email ?? ""} />
+            <div className="shrink-0">
+              <SignOutButton email={hubUser?.email ?? user.email ?? ""} />
+            </div>
           </div>
         </div>
       </header>

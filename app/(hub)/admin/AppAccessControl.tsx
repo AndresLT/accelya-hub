@@ -32,10 +32,11 @@ export function AppAccessControl({ userEmail, apps, assignedAppIds }: Props) {
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number }>({
-    top: 0,
-    left: 0,
-  });
+  const [pos, setPos] = useState<{
+    left: number;
+    top?: number;
+    bottom?: number;
+  }>({ left: 0, top: 0 });
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(assignedAppIds),
   );
@@ -48,10 +49,20 @@ export function AppAccessControl({ userEmail, apps, assignedAppIds }: Props) {
   function openPopover() {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (rect) {
-      setPos({
-        top: rect.bottom + 4,
-        left: Math.max(8, rect.right - POPOVER_WIDTH),
-      });
+      const margin = 8;
+      const left = Math.min(
+        Math.max(margin, rect.right - POPOVER_WIDTH),
+        window.innerWidth - POPOVER_WIDTH - margin,
+      );
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Flip the popover above the trigger when there isn't room below it
+      // (e.g. rows near the bottom of the screen) but there is room above.
+      if (spaceBelow < 280 && spaceAbove > spaceBelow) {
+        setPos({ left, bottom: window.innerHeight - rect.top + 4 });
+      } else {
+        setPos({ left, top: rect.bottom + 4 });
+      }
     }
     // Always reflect the latest server state when opening.
     setChecked(new Set(assignedAppIds));
@@ -141,7 +152,12 @@ export function AppAccessControl({ userEmail, apps, assignedAppIds }: Props) {
             />
             <div
               className="fixed z-50 rounded-xl border border-bg-3 bg-bg-1 p-3 shadow-lg"
-              style={{ top: pos.top, left: pos.left, width: POPOVER_WIDTH }}
+              style={{
+                left: pos.left,
+                top: pos.top,
+                bottom: pos.bottom,
+                width: POPOVER_WIDTH,
+              }}
             >
               <label className="flex cursor-pointer items-center gap-2 border-b border-bg-3 pb-2 text-sm font-semibold text-tx-1">
                 <input
