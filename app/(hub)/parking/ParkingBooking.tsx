@@ -56,11 +56,17 @@ export function ParkingBooking({ days }: { days: DayData[] }) {
 
   async function cancel() {
     setPending(true);
-    // RLS restricts the delete to the caller's own row within the window.
+    // Scope the delete to OUR OWN booking explicitly. RLS also lets an
+    // hr_admin delete any row, so without this filter an admin cancelling
+    // would wipe every user's booking for the day.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const { error } = await supabase
       .from("parking_bookings")
       .delete()
-      .eq("booking_date", day.date);
+      .eq("booking_date", day.date)
+      .eq("user_email", user?.email?.toLowerCase() ?? "");
     setPending(false);
     if (error) {
       toast.error(error.message);
