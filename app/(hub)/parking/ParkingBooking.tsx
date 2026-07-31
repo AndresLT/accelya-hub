@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -36,8 +36,15 @@ export function ParkingBooking({ days }: { days: DayData[] }) {
   const supabase = createClient();
   const [activeIdx, setActiveIdx] = useState(0);
   const [pending, setPending] = useState(false);
+  const [isRefreshing, startRefresh] = useTransition();
 
   const day = days[activeIdx];
+
+  // Re-run the Server Component to pull the latest availability and the
+  // user's own bookings (e.g. after a colleague booked or freed a spot).
+  function refresh() {
+    startRefresh(() => router.refresh());
+  }
 
   async function book(type: string) {
     setPending(true);
@@ -78,24 +85,38 @@ export function ParkingBooking({ days }: { days: DayData[] }) {
 
   return (
     <div>
-      <div className="mb-6 inline-flex rounded-lg border border-bg-3 bg-bg-1 p-1">
-        {days.map((d, i) => (
-          <button
-            key={d.date}
-            type="button"
-            onClick={() => setActiveIdx(i)}
-            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
-              i === activeIdx
-                ? "bg-acc-blue text-tx-1-c"
-                : "text-tx-2 hover:text-tx-1"
-            }`}
-          >
-            {d.title}
-            <span className="ml-1 hidden font-normal opacity-80 sm:inline">
-              · {d.subtitle}
-            </span>
-          </button>
-        ))}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-bg-3 bg-bg-1 p-1">
+          {days.map((d, i) => (
+            <button
+              key={d.date}
+              type="button"
+              onClick={() => setActiveIdx(i)}
+              className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
+                i === activeIdx
+                  ? "bg-acc-blue text-tx-1-c"
+                  : "text-tx-2 hover:text-tx-1"
+              }`}
+            >
+              {d.title}
+              <span className="ml-1 hidden font-normal opacity-80 sm:inline">
+                · {d.subtitle}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={isRefreshing || pending}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-bg-3 px-3 py-2 text-sm font-semibold text-tx-2 hover:bg-bg-2 disabled:opacity-50"
+        >
+          <span aria-hidden className={isRefreshing ? "animate-spin" : ""}>
+            &#8635;
+          </span>
+          {isRefreshing ? "Refreshing…" : "Refresh"}
+        </button>
       </div>
 
       {day.myVehicleType && (

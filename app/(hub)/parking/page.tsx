@@ -62,6 +62,7 @@ export default async function ParkingPage() {
     supabase
       .from("parking_bookings")
       .select("booking_date, vehicle_type")
+      .eq("user_email", userEmail)
       .in("booking_date", [today, tomorrow]),
   ]);
 
