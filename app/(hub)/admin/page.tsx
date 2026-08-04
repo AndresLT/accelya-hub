@@ -1,33 +1,48 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/database.types";
+import { Pagination } from "@/components/ui/Pagination";
 import { AddUserForm } from "./AddUserForm";
+import { EditUserForm } from "./EditUserForm";
 import { UserActions } from "./UserActions";
 import { AppAccessControl } from "./AppAccessControl";
 
 type HubUser = Tables<"hub_users">;
 type App = Pick<Tables<"apps">, "id" | "name">;
 
+const PAGE_SIZE = 10;
+
 /**
  * User management (UC7) + per-user app assignment (UC8). Server Component:
- * it loads every user, the active app catalog, and all app-access rows in
- * parallel (RLS scopes reads to hr_admins). Interactive cells (add user,
- * activate/role, assign apps) are Client Components that mutate via the
- * browser client and call router.refresh() to re-run this fetch.
+ * it loads one page of users, the active app catalog, and the app-access
+ * rows for just those users (RLS scopes reads to hr_admins). Interactive
+ * cells are Client Components that mutate via the browser client and call
+ * router.refresh() to re-run this fetch.
  */
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
   const supabase = await createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [usersRes, appsRes, accessRes] = await Promise.all([
+  const [usersRes, appsRes] = await Promise.all([
     supabase
       .from("hub_users")
-      .select("email, full_name, position, role, is_active, last_login_at")
-      .order("full_name", { ascending: true }),
+      .select("email, full_name, position, role, is_active, last_login_at", {
+        count: "exact",
+      })
+      .order("full_name", { ascending: true })
+      .range(from, to),
     supabase.from("apps").select("id, name").order("name", { ascending: true }),
-    supabase.from("user_app_access").select("user_email, app_id"),
   ]);
 
   const users = (usersRes.data ?? []) as Pick<
@@ -35,13 +50,21 @@ export default async function UsersPage() {
     "email" | "full_name" | "position" | "role" | "is_active" | "last_login_at"
   >[];
   const apps = (appsRes.data ?? []) as App[];
+  const totalPages = Math.max(1, Math.ceil((usersRes.count ?? 0) / PAGE_SIZE));
 
-  // Group assigned app ids by user email for O(1) lookup per row.
+  // App-access rows for just the users on this page.
   const accessByEmail = new Map<string, string[]>();
-  for (const row of accessRes.data ?? []) {
-    const list = accessByEmail.get(row.user_email) ?? [];
-    list.push(row.app_id);
-    accessByEmail.set(row.user_email, list);
+  const pageEmails = users.map((u) => u.email);
+  if (pageEmails.length > 0) {
+    const { data: accessRows } = await supabase
+      .from("user_app_access")
+      .select("user_email, app_id")
+      .in("user_email", pageEmails);
+    for (const row of accessRows ?? []) {
+      const list = accessByEmail.get(row.user_email) ?? [];
+      list.push(row.app_id);
+      accessByEmail.set(row.user_email, list);
+    }
   }
 
   return (
@@ -72,6 +95,11 @@ export default async function UsersPage() {
                       {u.full_name}
                     </div>
                     <div className="text-xs text-tx-3">{u.email}</div>
+                    <EditUserForm
+                      email={u.email}
+                      fullName={u.full_name}
+                      position={u.position ?? ""}
+                    />
                   </td>
                   <td className="px-4 py-3 text-tx-2">{u.position ?? "—"}</td>
                   <td className="px-4 py-3">
@@ -105,6 +133,13 @@ export default async function UsersPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        basePath="/admin"
+        page={page}
+        totalPages={totalPages}
+        totalItems={usersRes.count ?? undefined}
+      />
     </div>
   );
 }

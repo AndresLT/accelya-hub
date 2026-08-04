@@ -67,7 +67,35 @@ export function AddUserForm() {
         return;
       }
 
-      toast.success(`${normalizedEmail} can now access the Hub.`);
+      // New users get every active app assigned by default; HR can remove
+      // any of them afterwards from the user's row.
+      const { data: activeApps } = await supabase
+        .from("apps")
+        .select("id")
+        .eq("is_active", true);
+
+      if (activeApps && activeApps.length > 0) {
+        const { error: accessError } = await supabase
+          .from("user_app_access")
+          .insert(
+            activeApps.map((a) => ({
+              user_email: normalizedEmail,
+              app_id: a.id,
+              granted_by: user?.id ?? null,
+            })),
+          );
+        if (accessError) {
+          toast.warning(
+            "User created, but assigning apps failed. Assign them from the user's row.",
+          );
+          reset();
+          setOpen(false);
+          router.refresh();
+          return;
+        }
+      }
+
+      toast.success(`${normalizedEmail} can now access the Hub with all apps.`);
       reset();
       setOpen(false);
       router.refresh();

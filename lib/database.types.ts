@@ -83,6 +83,84 @@ export type Database = {
         }
         Relationships: []
       }
+      desk_bookings: {
+        Row: {
+          booking_date: string
+          created_at: string
+          desk_id: string
+          id: string
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          booking_date: string
+          created_at?: string
+          desk_id: string
+          id?: string
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          booking_date?: string
+          created_at?: string
+          desk_id?: string
+          id?: string
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "desk_bookings_desk_id_fkey"
+            columns: ["desk_id"]
+            isOneToOne: false
+            referencedRelation: "desks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desk_bookings_user_email_fkey"
+            columns: ["user_email"]
+            isOneToOne: false
+            referencedRelation: "hub_users"
+            referencedColumns: ["email"]
+          },
+        ]
+      }
+      desks: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          pos_x: number
+          pos_y: number
+          sort_order: number
+          updated_at: string
+          zone: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          pos_x: number
+          pos_y: number
+          sort_order: number
+          updated_at?: string
+          zone: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          pos_x?: number
+          pos_y?: number
+          sort_order?: number
+          updated_at?: string
+          zone?: string
+        }
+        Relationships: []
+      }
       hub_users: {
         Row: {
           created_at: string
@@ -238,6 +316,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_desk: {
+        Args: { p_date: string; p_desk_id: string }
+        Returns: {
+          booking_date: string
+          created_at: string
+          desk_id: string
+          id: string
+          updated_at: string
+          user_email: string
+        }
+      }
       book_parking: {
         Args: { p_date: string; p_type: string }
         Returns: {
@@ -248,6 +337,21 @@ export type Database = {
           user_email: string
           vehicle_type: string
         }
+      }
+      cancel_desk: { Args: { p_date: string }; Returns: undefined }
+      desk_map: {
+        Args: { p_date: string }
+        Returns: {
+          booked: boolean
+          booked_by_name: string
+          code: string
+          desk_id: string
+          is_mine: boolean
+          pos_x: number
+          pos_y: number
+          sort_order: number
+          zone: string
+        }[]
       }
       hook_restrict_signup_to_authorized_users: {
         Args: { event: Json }
