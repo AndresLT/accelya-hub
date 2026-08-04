@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/database.types";
+import { Pagination } from "@/components/ui/Pagination";
 
 type AccessLog = Tables<"access_logs">;
+
+const PAGE_SIZE = 10;
 
 /** Visual style per audit event type, using the semantic brand tokens. */
 const EVENT_STYLES: Record<string, { label: string; className: string }> = {
@@ -30,19 +33,29 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
  * recent first. RLS ("hr_admin can view access logs") scopes the read to
  * admins; the admin layout already gates the route.
  */
-export default async function AccessLogPage() {
+export default async function AccessLogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("access_logs")
-    .select("id, email, event_type, created_at")
+    .select("id, email, event_type, created_at", { count: "exact" })
     .order("created_at", { ascending: false })
-    .limit(200);
+    .range(from, to);
 
   const logs = (data ?? []) as Pick<
     AccessLog,
     "id" | "email" | "event_type" | "created_at"
   >[];
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
   if (error) {
     return (
@@ -52,7 +65,7 @@ export default async function AccessLogPage() {
     );
   }
 
-  if (logs.length === 0) {
+  if ((count ?? 0) === 0) {
     return (
       <p className="rounded-lg border border-bg-3 bg-bg-1 px-4 py-6 text-center text-sm text-tx-3">
         No access events recorded yet.
@@ -61,7 +74,8 @@ export default async function AccessLogPage() {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-bg-3 bg-bg-1">
+    <div className="space-y-4">
+      <div className="overflow-x-auto rounded-xl border border-bg-3 bg-bg-1">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-bg-3 text-xs uppercase tracking-wide text-tx-3">
@@ -97,6 +111,14 @@ export default async function AccessLogPage() {
           })}
         </tbody>
       </table>
+      </div>
+
+      <Pagination
+        basePath="/admin/logs"
+        page={page}
+        totalPages={totalPages}
+        totalItems={count ?? undefined}
+      />
     </div>
   );
 }

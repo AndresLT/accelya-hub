@@ -97,3 +97,19 @@ button:not(:disabled),
   --info-border: var(--color-info);
   --info-text: var(--color-info-tx);
 }
+
+/* Desk map: replace the browser's default (oval) focus ring on a desk with
+   a thin, square outline that matches the desk tile. */
+.desk-marker {
+  outline: none;
+}
+.desk-focus-ring {
+  fill: none;
+  stroke: var(--color-acc-blue);
+  stroke-width: 0.4;
+  opacity: 0;
+  pointer-events: none;
+}
+.desk-marker:focus .desk-focus-ring {
+  opacity: 1;
+}
