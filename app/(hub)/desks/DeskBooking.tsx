@@ -138,6 +138,13 @@ export function DeskBooking({ days }: { days: DeskDay[] }) {
           <Legend swatch="border border-acc-teal bg-bg-1" label="Available" />
           <Legend swatch="bg-acc-blue" label="Yours" />
           <Legend swatch="bg-bg-3" label="Taken" />
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex gap-0.5">
+              <span className="inline-block size-2 rounded-[1px] bg-acc-teal" />
+              <span className="inline-block size-2 rounded-[1px] bg-acc-teal" />
+            </span>
+            Dual monitor
+          </span>
         </div>
       </div>
 
@@ -192,11 +199,14 @@ export function DeskBooking({ days }: { days: DeskDay[] }) {
               : takenByOther
                 ? "var(--color-tx-3)"
                 : "var(--color-tx-1)";
-            const label = mine
+            // Zone C desks come with two monitors (visual amenity hint).
+            const dualScreen = d.zone === "C";
+            const baseLabel = mine
               ? `Desk ${d.code}, yours — tap to release`
               : takenByOther
                 ? `Desk ${d.code}, taken by ${d.booked_by_name ?? "someone"}`
                 : `Desk ${d.code}, available — tap to book`;
+            const label = dualScreen ? `${baseLabel} · dual monitor` : baseLabel;
 
             return (
               <g
@@ -244,6 +254,26 @@ export function DeskBooking({ days }: { days: DeskDay[] }) {
                 >
                   {d.sort_order}
                 </text>
+                {dualScreen && (
+                  <g style={{ pointerEvents: "none" }}>
+                    <rect
+                      x={d.pos_x + 0.3}
+                      y={d.pos_y - 2.9}
+                      width={1.2}
+                      height={1}
+                      rx={0.2}
+                      style={{ fill: "var(--color-acc-teal)" }}
+                    />
+                    <rect
+                      x={d.pos_x + 1.7}
+                      y={d.pos_y - 2.9}
+                      width={1.2}
+                      height={1}
+                      rx={0.2}
+                      style={{ fill: "var(--color-acc-teal)" }}
+                    />
+                  </g>
+                )}
               </g>
             );
           })}

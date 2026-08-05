@@ -54,6 +54,7 @@ export type Database = {
           icon: string | null
           id: string
           is_active: boolean
+          is_coming_soon: boolean
           key: string
           launch_url: string
           name: string
@@ -65,6 +66,7 @@ export type Database = {
           icon?: string | null
           id?: string
           is_active?: boolean
+          is_coming_soon?: boolean
           key: string
           launch_url: string
           name: string
@@ -76,6 +78,7 @@ export type Database = {
           icon?: string | null
           id?: string
           is_active?: boolean
+          is_coming_soon?: boolean
           key?: string
           launch_url?: string
           name?: string
