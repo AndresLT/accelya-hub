@@ -275,6 +275,84 @@ export type Database = {
         }
         Relationships: []
       }
+      room_bookings: {
+        Row: {
+          booking_date: string
+          created_at: string
+          end_min: number
+          id: string
+          room_id: string
+          start_min: number
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          booking_date: string
+          created_at?: string
+          end_min: number
+          id?: string
+          room_id: string
+          start_min: number
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          booking_date?: string
+          created_at?: string
+          end_min?: number
+          id?: string
+          room_id?: string
+          start_min?: number
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_bookings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_bookings_user_email_fkey"
+            columns: ["user_email"]
+            isOneToOne: false
+            referencedRelation: "hub_users"
+            referencedColumns: ["email"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          capacity: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          capacity: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order: number
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_app_access: {
         Row: {
           app_id: string
@@ -341,7 +419,26 @@ export type Database = {
           vehicle_type: string
         }
       }
+      book_room: {
+        Args: {
+          p_date: string
+          p_end_min: number
+          p_room_id: string
+          p_start_min: number
+        }
+        Returns: {
+          booking_date: string
+          created_at: string
+          end_min: number
+          id: string
+          room_id: string
+          start_min: number
+          updated_at: string
+          user_email: string
+        }
+      }
       cancel_desk: { Args: { p_date: string }; Returns: undefined }
+      cancel_room: { Args: { p_booking_id: string }; Returns: undefined }
       desk_map: {
         Args: { p_date: string }
         Returns: {
@@ -379,6 +476,17 @@ export type Database = {
           capacity: number
           label: string
           vehicle_type: string
+        }[]
+      }
+      room_day: {
+        Args: { p_date: string }
+        Returns: {
+          booked_by_name: string
+          booking_id: string
+          end_min: number
+          is_mine: boolean
+          room_id: string
+          start_min: number
         }[]
       }
     }
