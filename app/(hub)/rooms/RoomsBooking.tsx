@@ -9,7 +9,6 @@ import { RefreshButton } from "@/components/ui/RefreshButton";
 const DAY_START = 300; // 05:00
 const DAY_END = 1080; // 18:00
 const STEP = 30;
-const MAX_DURATION = 240; // 4h cap for the dropdown
 
 type Room = { id: string; name: string; capacity: number };
 
@@ -42,6 +41,7 @@ function durationLabel(min: number) {
   if (m === 0) return `${h} h`;
   return `${h} h ${m} min`;
 }
+/** Bookable start times (business hours), optionally hiding past ones. */
 function startOptions(minStart: number): number[] {
   const out: number[] = [];
   for (let t = DAY_START; t <= DAY_END - STEP; t += STEP) {
@@ -49,18 +49,18 @@ function startOptions(minStart: number): number[] {
   }
   return out;
 }
-function durationOptions(start: number): number[] {
+function stepRange(from: number, toInclusive: number): number[] {
   const out: number[] = [];
-  const max = Math.min(MAX_DURATION, DAY_END - start);
-  for (let d = STEP; d <= max; d += STEP) out.push(d);
+  for (let t = from; t <= toInclusive; t += STEP) out.push(t);
   return out;
 }
 
 /**
- * Meeting room booking (UC "rooms"). Per-room cards show the day agenda
- * (who booked which range) and a Start + Duration form (Teams-style). All
- * rules — window, business hours, and NO overlapping bookings per room —
- * are enforced by book_room()/cancel_room() in the database.
+ * Meeting room booking. Per-room cards show the day agenda and a From/To
+ * time form. The dropdowns only offer AVAILABLE times: From hides slots
+ * that fall inside an existing booking, and To can't extend past the next
+ * booking — so a selection can never overlap. The database still enforces
+ * the rules (window, business hours, no overlap) as the final guard.
  */
 export function RoomsBooking({
   rooms,
@@ -79,7 +79,6 @@ export function RoomsBooking({
   const day = days[activeIdx];
   const isToday = activeIdx === 0;
 
-  // For today, hide start times that have already passed (rounded to step).
   const minStart = isToday
     ? Math.max(DAY_START, Math.ceil(nowMin / STEP) * STEP)
     : DAY_START;
@@ -175,16 +174,57 @@ function RoomCard({
   onBook: (roomId: string, startMin: number, endMin: number) => void;
   onCancel: (bookingId: string) => void;
 }) {
-  const [start, setStart] = useState<number | "">(starts[0] ?? "");
-  const [duration, setDuration] = useState<number>(STEP);
+  // A time is free if it isn't inside any existing booking [start, end).
+  const isFree = (t: number) =>
+    !bookings.some((b) => t >= b.start_min && t < b.end_min);
+  // Latest a meeting starting at `t` can run: the next booking's start.
+  const nextBoundary = (t: number) => {
+    const afters = bookings
+      .filter((b) => b.start_min > t)
+      .map((b) => b.start_min);
+    return afters.length ? Math.min(...afters) : DAY_END;
+  };
 
-  const durations = typeof start === "number" ? durationOptions(start) : [];
-  // Keep the selected duration valid for the chosen start.
-  const effectiveDuration = durations.includes(duration)
-    ? duration
-    : (durations[0] ?? STEP);
+  // A start is available if it's free and has at least one 30-min slot
+  // before the next booking. Unavailable ones are shown disabled.
+  const isStartAvailable = (t: number) =>
+    isFree(t) && nextBoundary(t) - t >= STEP;
+  const availableStarts = starts.filter(isStartAvailable);
 
-  const canBook = typeof start === "number" && durations.length > 0 && !pending;
+  const [start, setStart] = useState<number | "">(availableStarts[0] ?? "");
+  const [end, setEnd] = useState<number | "">(
+    typeof availableStarts[0] === "number" ? availableStarts[0] + STEP : "",
+  );
+
+  // Self-correct the selection if bookings changed (e.g. after a refresh).
+  const effectiveStart =
+    typeof start === "number" && availableStarts.includes(start)
+      ? start
+      : (availableStarts[0] ?? null);
+
+  // Show all end times up to business close; the ones past the next booking
+  // are rendered disabled.
+  const maxEnd = effectiveStart !== null ? nextBoundary(effectiveStart) : DAY_END;
+  const allEnds =
+    effectiveStart !== null ? stepRange(effectiveStart + STEP, DAY_END) : [];
+  const validEnds = allEnds.filter((e) => e <= maxEnd);
+  const effectiveEnd =
+    typeof end === "number" && validEnds.includes(end)
+      ? end
+      : (validEnds[0] ?? null);
+
+  const total =
+    effectiveStart !== null && effectiveEnd !== null
+      ? effectiveEnd - effectiveStart
+      : 0;
+
+  const canBook =
+    effectiveStart !== null && effectiveEnd !== null && !pending;
+
+  function changeStart(value: number) {
+    setStart(value);
+    setEnd(value + STEP);
+  }
 
   return (
     <div className="flex flex-col rounded-xl border border-bg-3 bg-bg-1 p-5">
@@ -235,48 +275,64 @@ function RoomCard({
         <p className="mt-auto text-sm text-tx-3">
           No more time slots available today.
         </p>
+      ) : availableStarts.length === 0 ? (
+        <p className="mt-auto text-sm text-tx-3">
+          Fully booked for this day.
+        </p>
       ) : (
         <div className="mt-auto border-t border-bg-3 pt-4">
           <div className="flex flex-wrap gap-2">
             <label className="flex-1">
               <span className="mb-1 block text-xs font-semibold text-tx-2">
-                Start
+                From
               </span>
               <select
-                value={start}
-                onChange={(e) => setStart(Number(e.target.value))}
+                value={effectiveStart ?? ""}
+                onChange={(e) => changeStart(Number(e.target.value))}
                 className="w-full rounded-lg border border-bg-3 bg-bg-1 px-2.5 py-2 text-sm outline-none focus:border-acc-blue"
               >
-                {starts.map((s) => (
-                  <option key={s} value={s}>
-                    {timeLabel(s)}
-                  </option>
-                ))}
+                {starts.map((s) => {
+                  const avail = isStartAvailable(s);
+                  return (
+                    <option key={s} value={s} disabled={!avail}>
+                      {timeLabel(s)}
+                      {avail ? "" : " · booked"}
+                    </option>
+                  );
+                })}
               </select>
             </label>
             <label className="flex-1">
               <span className="mb-1 block text-xs font-semibold text-tx-2">
-                Duration
+                To
               </span>
               <select
-                value={effectiveDuration}
-                onChange={(e) => setDuration(Number(e.target.value))}
+                value={effectiveEnd ?? ""}
+                onChange={(e) => setEnd(Number(e.target.value))}
                 className="w-full rounded-lg border border-bg-3 bg-bg-1 px-2.5 py-2 text-sm outline-none focus:border-acc-blue"
               >
-                {durations.map((d) => (
-                  <option key={d} value={d}>
-                    {durationLabel(d)}
+                {validEnds.map((eOpt) => (
+                  <option key={eOpt} value={eOpt}>
+                    {timeLabel(eOpt)}
                   </option>
                 ))}
               </select>
             </label>
           </div>
+
+          <p className="mt-2 text-xs text-tx-3">
+            Total:{" "}
+            <span className="font-semibold text-tx-2">
+              {durationLabel(total)}
+            </span>
+          </p>
+
           <button
             type="button"
             disabled={!canBook}
             onClick={() => {
-              if (typeof start === "number") {
-                onBook(room.id, start, start + effectiveDuration);
+              if (effectiveStart !== null && effectiveEnd !== null) {
+                onBook(room.id, effectiveStart, effectiveEnd);
               }
             }}
             className="mt-3 w-full rounded-lg bg-acc-blue px-4 py-2 text-sm font-semibold text-tx-1-c disabled:opacity-50"
